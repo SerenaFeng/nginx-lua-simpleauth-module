@@ -25,6 +25,8 @@
 -- access_with_authn() accept a function param to retrieve uid, so you can use other complicated
 -- authn method along with this authz module.
 
+local lyaml = require "lyaml"
+
 local groups = {}
 local rule_actions = {}
 local rule_roles = {}
@@ -55,10 +57,10 @@ local function expand_roles (roles)
     return ret
 end
 
-local function create_group (group_name, ...)
+local function create_group (group_name, members)
     -- create a group of uids
 
-    groups[group_name] = expand_roles({...})
+    groups[group_name] = expand_roles(members)
 end
 
 local function create_rule (rule_name, action, roles, except_roles)
@@ -67,9 +69,26 @@ local function create_rule (rule_name, action, roles, except_roles)
     -- 'roles': list of uids and group_names
     -- uid or group listed in 'roles' will be 'action'ed, unless the uid is listed in 'except_roles'.
 
-    rule_roles[rule_name] = expand_roles(roles)
-    rule_except_roles[rule_name] = expand_roles(except_roles)
+    if roles then rule_roles[rule_name] = expand_roles(roles) end
+    if except_roles then rule_except_roles[rule_name] = expand_roles(except_roles) end
     rule_actions[rule_name] = (action == "allow")
+end
+
+local function create_rules (rulefile)
+    local fd = assert(io.open(rulefile,'r'))
+    local content = fd:read("*all")
+    fd:close()
+    local yaml_c = lyaml.load(content)
+    for k, v in pairs(yaml_c.groups) do
+      create_group(k, v)
+    end
+
+    for rule_name, rule in pairs(yaml_c.rules) do
+      for action, roles in pairs(rule) do
+        create_rule(rule_name, action, roles.roles, roles.excepts)
+      end
+    end
+
 end
 
 local function access (rule_name, uid)
@@ -125,8 +144,8 @@ create_rule ('ALLOW_ALL', 'deny', {}, {})
 create_rule ('DENY_ALL', 'allow', {}, {})
 
 local P = {
-    create_group = create_group,
-    create_rule = create_rule,
+--    create_group = create_group,
+    create_rules = create_rules,
     access = access,
     access_with_authn = access_with_authn
 }

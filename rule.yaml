@@ -1,0 +1,23 @@
+groups:
+  group1:
+    - 'adam'
+    - 'lucy'
+  group2:
+    - 'lily'
+    - 'jose'
+
+rules:
+  rule1:
+    allow:
+      roles:
+        - '@group1'
+      excepts:
+        - 'lucy'
+    deny:
+      roles:
+        - '@group2'
+  rule2:
+    deny:
+      roles:
+        - '@group2'
+
